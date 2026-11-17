@@ -1,78 +1,29 @@
 """
-Scrape r/Techno posts for a date range via the Arctic Shift archive API
-(free Pushshift successor, no Reddit login or API key needed).
+Scrape subreddit posts for a date range via the Arctic Shift archive API
+and turn them into a tidy CSV.
 
-Output: one CSV row per post with
-  post_date, artist, track, release_year, content_type (track/set),
-  subgenre_flair, subgenre_keywords, mentioned_location, + raw fields.
+Two stages, so the parser can change without re-scraping:
+  1. fetch  -> data/raw/reddit/posts_<sub>_<after>_<before>.jsonl  (full API records)
+  2. parse  -> data/processed/reddit_<sub>_posts.csv               (one row per post)
 
-Usage:
-    pip install requests pandas
-    python scrape_reddit_techno.py --after 2025-10-27 --before 2026-10-27
+Usage (from the repo root):
+    python src/scraping/scraping_reddit.py --after 2025-10-27 --before 2026-10-27
+    python src/scraping/scraping_reddit.py --refetch      # ignore cached raw file
 """
 
 import argparse
 import re
-import time
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import urlparse
 
 import pandas as pd
-import requests
 
-API = "https://arctic-shift.photon-reddit.com/api/posts/search"
-# Arctic Shift rejects unknown field names with HTTP 400 (domain/permalink are not allowed).
-FIELDS = [
-    "id", "created_utc", "title", "author", "link_flair_text", "url",
-    "subreddit", "score", "num_comments", "selftext",
-]
+import arctic_shift
 
-# ---------------------------------------------------------------- fetching
-
-def fetch_posts(subreddit, after, before, page_size=100, pause=0.5):
-    """Page through the archive in ascending time order."""
-    rows, cursor = [], after
-    session = requests.Session()
-    while True:
-        params = {
-            "subreddit": subreddit,
-            "after": cursor,
-            "before": before,
-            "limit": page_size,
-            "sort": "asc",
-            "fields": ",".join(FIELDS),
-        }
-        for attempt in range(5):
-            r = session.get(API, params=params, timeout=60)
-            if r.status_code == 200:
-                break
-            detail = r.text[:300]
-            try:
-                detail = r.json().get("error") or detail
-            except ValueError:
-                pass
-            if r.status_code == 400:
-                raise RuntimeError(f"HTTP 400 from API: {detail}")
-            wait = 2 ** attempt * 5
-            print(f"HTTP {r.status_code} ({detail}), retrying in {wait}s")
-            time.sleep(wait)
-        else:
-            raise RuntimeError(f"Gave up at cursor {cursor}")
-
-        batch = r.json().get("data", [])
-        if not batch:
-            break
-        rows.extend(batch)
-        last = batch[-1]["created_utc"]
-        print(f"{len(rows):>6} posts, up to "
-              f"{datetime.fromtimestamp(last, tz=timezone.utc):%Y-%m-%d}")
-        if len(batch) < page_size:
-            break
-        cursor = int(last) + 1  # unix timestamp works as 'after'
-        time.sleep(pause)
-
-    # dedupe in case of overlapping timestamps
-    return list({p["id"]: p for p in rows}.values())
+ROOT = Path(__file__).resolve().parents[2]
+RAW_DIR = ROOT / "data" / "raw" / "reddit"
+OUT_DIR = ROOT / "data" / "processed"
 
 # ---------------------------------------------------------------- parsing
 
@@ -105,7 +56,6 @@ SUBGENRES = {
 SUBGENRE_RE = {k: re.compile(v, re.I) for k, v in SUBGENRES.items()}
 
 # Rough location hints - noisy, meant as a starting point only.
-# The more reliable route for country is joining artist -> Discogs.
 LOCATIONS = [
     "Berlin", "Germany", "Detroit", "UK", "London", "Amsterdam",
     "Netherlands", "Belgium", "Brussels", "Paris", "France", "Tbilisi",
@@ -115,6 +65,8 @@ LOCATIONS = [
     "Australia", "USA", "New York", "Chicago", "Canada", "Portugal",
 ]
 LOC_RE = re.compile(r"\b(" + "|".join(map(re.escape, LOCATIONS)) + r")\b")
+
+REMOVED = {"moderator", "reddit", "deleted", "content_takedown"}
 
 
 def link_domain(url):
@@ -128,18 +80,6 @@ def link_domain(url):
     return host.removeprefix("www.")
 
 
-def post_permalink(post):
-    url = post.get("url") or ""
-    if "reddit.com" in url and "/comments/" in url:
-        path = urlparse(url).path
-        return "https://reddit.com" + path if path else None
-    pid = post.get("id")
-    sub = post.get("subreddit")
-    if pid and sub:
-        return f"https://reddit.com/r/{sub}/comments/{pid}/"
-    return None
-
-
 def parse_title(title):
     out = {"artist": None, "track": None, "release_year": None}
     if not title:
@@ -149,12 +89,13 @@ def parse_title(title):
     if m:
         out["release_year"] = int(m.group(1))
 
-    parts = SEP.split(title, maxsplit=1)
+    # drop bracketed bits first so "(1962 - 2026)" is not read as a separator
+    parts = SEP.split(BRACKETS.sub("", title), maxsplit=1)
     if len(parts) == 2:
         artist, track = parts
-        out["artist"] = BRACKETS.sub("", artist).strip(" |:") or None
+        out["artist"] = artist.strip(" |:") or None
         track = track.split("|")[0]          # drop "| genre" tails
-        out["track"] = re.sub(r"\s+", " ", BRACKETS.sub("", track)).strip(" :") or None
+        out["track"] = re.sub(r"\s+", " ", track).strip(" :–-") or None
     return out
 
 
@@ -162,8 +103,9 @@ def enrich(post):
     title = post.get("title") or ""
     flair = post.get("link_flair_text") or ""
     text = f"{title} {flair} {post.get('selftext') or ''}"
+    meta = post.get("_meta") or {}
 
-    row = {
+    return {
         "post_id": post["id"],
         "post_date": datetime.fromtimestamp(
             post["created_utc"], tz=timezone.utc).date().isoformat(),
@@ -177,12 +119,22 @@ def enrich(post):
             sorted(set(LOC_RE.findall(text)))) or None,
         "domain": link_domain(post.get("url")),
         "url": post.get("url"),
+        "is_self": post.get("is_self"),
+        "selftext_len": len(post.get("selftext") or ""),
         "score": post.get("score"),
+        "upvote_ratio": post.get("upvote_ratio"),
         "num_comments": post.get("num_comments"),
+        "stickied": post.get("stickied"),
+        # 'automod_filtered' is the state at first capture (held for review) and
+        # many such posts were approved later, so it does not count as removed.
+        "removed_by_category": post.get("removed_by_category"),
+        "removed": post.get("removed_by_category") in REMOVED,
         "author": post.get("author"),
-        "permalink": post_permalink(post),
+        "permalink": f"https://reddit.com/r/{post.get('subreddit')}/comments/{post['id']}/",
+        "score_retrieved_on": datetime.fromtimestamp(
+            meta.get("retrieved_2nd_on") or post.get("retrieved_on") or 0,
+            tz=timezone.utc).isoformat(timespec="seconds"),
     }
-    return row
 
 # ---------------------------------------------------------------- main
 
@@ -191,20 +143,30 @@ def main():
     ap.add_argument("--subreddit", default="Techno")
     ap.add_argument("--after", default="2025-10-27")
     ap.add_argument("--before", default="2026-10-27")
-    ap.add_argument("--out", default=None)
+    ap.add_argument("--refetch", action="store_true", help="ignore cached raw file")
     args = ap.parse_args()
 
-    posts = fetch_posts(args.subreddit, args.after, args.before)
-    df = pd.DataFrame([enrich(p) for p in posts]).sort_values("post_date")
+    sub = args.subreddit.lower()
+    raw = RAW_DIR / f"posts_{sub}_{args.after}_{args.before}.jsonl"
+    if raw.exists() and not args.refetch:
+        print(f"Using cached {raw.relative_to(ROOT)}")
+        posts = arctic_shift.read_jsonl(raw)
+    else:
+        posts = arctic_shift.fetch_posts(args.subreddit, args.after, args.before)
+        arctic_shift.write_jsonl(posts, raw)
+        print(f"Saved {len(posts)} raw posts -> {raw.relative_to(ROOT)}")
 
-    out = args.out or f"reddit_{args.subreddit.lower()}_{args.after}_{args.before}.csv"
+    df = pd.DataFrame([enrich(p) for p in posts]).sort_values("post_date")
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    out = OUT_DIR / f"reddit_{sub}_posts.csv"
     df.to_csv(out, index=False)
 
-    print(f"\nSaved {len(df)} posts -> {out}")
-    print(f"  artist parsed:       {df['artist'].notna().mean():.0%}")
-    print(f"  release year parsed: {df['release_year'].notna().mean():.0%}")
-    print(f"  has flair:           {df['subgenre_flair'].notna().mean():.0%}")
-    print("\nTop flairs:\n", df["subgenre_flair"].value_counts().head(15))
+    tracks = df[df["subgenre_flair"] == "Track"]
+    print(f"\nSaved {len(df)} posts -> {out.relative_to(ROOT)}")
+    print(f"  artist parsed (Track flair): {tracks['artist'].notna().mean():.0%}")
+    print(f"  release year parsed:         {df['release_year'].notna().mean():.0%}")
+    print(f"  has flair:                   {df['subgenre_flair'].notna().mean():.0%}")
+    print("\nFlairs:\n", df["subgenre_flair"].value_counts().head(15))
 
 
 if __name__ == "__main__":
