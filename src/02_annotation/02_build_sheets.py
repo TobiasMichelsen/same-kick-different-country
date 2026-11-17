@@ -26,6 +26,8 @@ RAW_POSTS = ROOT / "data" / "raw" / "reddit" / "posts_techno_2025-10-27_2026-10-
 COMMENT_DIR = ROOT / "data" / "raw" / "reddit" / "comments"
 UNITS = ROOT / "annotations" / "units.csv"
 SHEET_DIR = ROOT / "annotations" / "sheets"
+CLAUDE_DIR = ROOT / "annotations" / "claude"
+
 
 GONE = {"[deleted]", "[removed]", ""}
 BOTS = {"AutoModerator"}
@@ -105,13 +107,15 @@ def main():
     print(f"\nSaved {len(units)} units -> {UNITS.relative_to(ROOT)}")
 
     SHEET_DIR.mkdir(parents=True, exist_ok=True)
-    # 'all' posts go in every sheet, 'claude' posts in none
-    annotators = sorted(a for a in sample["assigned_to"].unique() if a not in ("all", "claude"))
+    # 'all' posts go in every human sheet, claude gets them in a separate file (blind test)
+    humans = sorted(a for a in sample["assigned_to"].unique() if a.startswith("annotator_"))
+    sheets = {SHEET_DIR / f"{a}.csv": [a, "all"] for a in humans}
+    sheets[CLAUDE_DIR / "claude_for_interannotator_agreement.csv"] = ["all"]
+    sheets[CLAUDE_DIR / "claude.csv"] = ["claude"]
     cols = ["unit_id", "post_id", "stratum", "unit_type", "post_title", "parent_text",
             "text", "score", "permalink"]
-    for a in annotators:
-        path = SHEET_DIR / f"{a}.csv"
-        sheet = units[units["assigned_to"].isin([a, "all"])][cols].copy()
+    for path, groups in sheets.items():
+        sheet = units[units["assigned_to"].isin(groups)][cols].copy()
         for c in CODE_COLUMNS:
             sheet[c] = ""
         if path.exists() and not args.force:
