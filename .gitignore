@@ -4,3 +4,5 @@ __pycache__/
 data/raw/
 annotations/sheets/*.bak
 annotations/sheets/*.tmp
+.claude/launch.json
+.DS_Store
