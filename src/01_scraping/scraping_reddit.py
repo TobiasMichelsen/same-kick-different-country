@@ -7,8 +7,8 @@ Two stages, so the parser can change without re-scraping:
   2. parse  -> data/processed/reddit_<sub>_posts.csv               (one row per post)
 
 Usage (from the repo root):
-    python src/scraping/scraping_reddit.py --after 2025-10-27 --before 2026-10-27
-    python src/scraping/scraping_reddit.py --refetch      # ignore cached raw file
+    python src/01_scraping/scraping_reddit.py --after 2025-10-27 --before 2026-10-27
+    python src/01_scraping/scraping_reddit.py --refetch      # ignore cached raw file
 """
 
 import argparse
