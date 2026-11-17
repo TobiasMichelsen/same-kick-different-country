@@ -110,7 +110,7 @@ def main():
     # 'all' posts go in every human sheet, claude gets them in a separate file (blind test)
     humans = sorted(a for a in sample["assigned_to"].unique() if a.startswith("annotator_"))
     sheets = {SHEET_DIR / f"{a}.csv": [a, "all"] for a in humans}
-    sheets[CLAUDE_DIR / "claude_for_interannotator_agreement.csv"] = ["all"]
+    sheets[CLAUDE_DIR / "claude_zeroshot.csv"] = ["all"]
     sheets[CLAUDE_DIR / "claude.csv"] = ["claude"]
     cols = ["unit_id", "post_id", "stratum", "unit_type", "post_title", "parent_text",
             "text", "score", "permalink"]
