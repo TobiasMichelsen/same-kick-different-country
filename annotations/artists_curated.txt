@@ -1,0 +1,254 @@
+# Techno artists / DJs / live acts for the annotator's suggestions.
+# One per line: Canonical Name | alias | alias ...
+# Single-word names and aliases only match when capitalised as written here;
+# multi-word names match in any case. Accents are ignored when matching.
+# After editing, run: python src/02_annotation/03_build_artist_list.py
+
+# Detroit / Chicago / US
+Juan Atkins
+Derrick May | D. May
+Kevin Saunderson
+Jeff Mills | Mills
+Robert Hood
+Mike Banks | Mad Mike
+Underground Resistance | UR
+Drexciya
+Carl Craig
+Richie Hawtin | Hawtin | Plastikman
+Matthew Hawtin
+Stacey Pullen
+Kenny Larkin
+Claude Young
+Terrence Dixon
+DJ Bone | Bone
+Octave One
+Moodymann
+Theo Parrish
+Omar S
+DJ Stingray
+Aux 88
+Blake Baxter
+Eddie Fowlkes
+Anthony Shakir
+Magda
+Marc Houle
+Troy Pierce
+Gene Richards Jr
+Joey Beltram | Beltram
+Frankie Bones
+Green Velvet
+DJ Rush
+Robert Armani
+Adam X
+Dave Siska
+DVS1
+Truncate
+Nicole Moudaber
+Danny Tenaglia
+Joe Claussell
+
+# Berlin / Germany / Austria / Switzerland
+Ben Klock | Klock
+Marcel Dettmann | Dettmann
+Len Faki
+Kobosil
+Answer Code Request
+Rødhåd | Rodhad
+Ellen Allien
+Paul Kalkbrenner
+Sven Väth
+Chris Liebing | Liebing
+Dr. Motte
+Westbam
+DJ Hell
+Ricardo Villalobos | Villalobos
+Zip
+Efdemin
+Steffi
+Function
+Norman Nodge
+Fiedel
+Tama Sumo
+Boris
+Nur Jaber
+Anetha
+Skee Mask
+Zenker Brothers
+Basic Channel
+Rhythm & Sound
+Moritz von Oswald
+Mark Ernestus
+Thomas Fehlmann
+Roman Flügel
+Jörn Wuttke
+Patrick Pulsinger
+Erdem Tunakan
+Dominik Eulberg
+Boris Brejcha
+Stephan Bodzin
+Klangkuenstler
+Alignment
+Ø [Phase]
+Johannes Heil
+Lars Huismann
+Fadi Mohem
+Dasha Rush
+Lucy
+Speedy J
+Marcel Fengler
+Ancient Methods
+Phase Fatale
+Schwefelgelb
+Monolake
+T.Raumschmiere
+Atari Teenage Riot
+Roman Weber
+
+# UK / Ireland
+Surgeon
+Regis
+Luke Slater | Planetary Assault Systems
+Ben Sims
+Dave Clarke
+Adam Beyer | Beyer
+Blawan
+Perc
+Paula Temple
+Truss
+Shed
+Objekt
+Call Super
+Joy Orbison
+Skream
+Mark Broom
+Dave Angel
+Steve Bicknell
+Karenn
+Pariah
+Bandulu
+Global Communication
+The Orb
+Sabres of Paradise
+Andrew Weatherall
+Slam
+Harvey McKay
+Ewan McVicar
+Hannah Laing
+Mr. C
+Bicep
+Ross from Friends
+Jon Hopkins
+Dax J
+Rebekah
+Dense & Pika
+Josh Wink
+
+# Netherlands / Belgium / France / Spain / Italy / Portugal
+Charlotte de Witte | Charlotte | CDW
+Amelie Lens
+Reinier Zonneveld
+Joris Voorn
+Speedy J
+Jochem Paap
+Miss Djax
+Estella Boersma
+Nina de Koning
+Laurent Garnier | Garnier
+Vitalic
+I Hate Models | IHM
+999999999
+SNTS
+Hadone
+Shlomo
+KI/KI | Ki/ki
+Alarico
+Oscar Mulero
+Exium
+Reeko
+Héctor Oaks
+Psyk
+Dj Nobu
+Donato Dozzy | Dozzy
+Neel
+Claudio PRC
+Marco Carola
+Joseph Capriati
+Gaetano Parisio
+Lewis Fautzi
+Mauro Picotto
+Deborah De Luca
+Brina Knauss
+Spekki Webu
+Ottagone
+Rene Wise | René Wise
+Luigi Tozzi
+Mac Declos
+Glaskin
+Danny Wabbit
+Woody92
+Floid
+JEANS
+Pegassi
+Odymel
+Faster Horses
+Marlon Hoffstadt
+Nastia
+Kaan Pirecioglu
+DJ Sun
+Chlar
+Stranger
+Frenk Dublin
+
+# Sweden / Nordics
+Cari Lekebusch
+Alexander Kowalski
+Adam Beyer
+Joel Mull
+Henrik B
+Aril Brikha
+Mattias Fridell
+Alexander Johansson
+Inigo Kennedy
+Anyma
+Kölsch
+
+# Georgia / Eastern Europe / elsewhere
+Vakhtang
+HVL
+Zitto
+Ken Ishii
+Dj Nobu
+Wata Igarashi
+Fumiya Tanaka
+Vinicius Honorio
+Ignez
+ANNĒ
+Kr!z
+Amotik
+Rrose
+Dubfire
+Umek
+Mistress Barbara
+Phara
+Setaoc Mass
+VTSS
+Héctor Oaks
+Kevin de Vries
+Tale Of Us
+Peggy Gou
+Fred again..
+Brad No Limit | Bradnolimit | BNL
+Ateq
+Sutekh
+Swayzak
+Stewart Walker
+Theorem | Dale Lawrence
+M.A.N.D.Y.
+Phillip Jung
+Richard H Kirk
+Bill Laswell
+Merzbow
+Melt Banana
+Danya
+Colin Benders
+Ty Bolando
