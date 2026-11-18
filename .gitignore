@@ -1,4 +1,6 @@
 .env
+
+# macOS system files
 .DS_Store
 __pycache__/
 data/raw/
