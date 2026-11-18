@@ -2,3 +2,8 @@
 
 # macOS system files
 .DS_Store
+__pycache__/
+data/raw/
+annotations/sheets/*.bak
+annotations/sheets/*.tmp
+.claude/launch.json

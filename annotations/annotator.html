@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Techno Annotator</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #ffffff; --ink: #1d1d1f; --muted: #6b6b70; --line: #e2e0db;
+    --accent: #3b5bdb; --accent-ink: #ffffff; --soft: #eef1fb; --ok: #2f9e44; --warn: #e67700;
+    --quote: #f1efea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151517; --panel: #1f1f22; --ink: #ececef; --muted: #9a9aa2; --line: #333338;
+      --accent: #7b95ff; --accent-ink: #0d0d10; --soft: #262b3d; --ok: #51cf66; --warn: #ffa94d;
+      --quote: #2a2a2e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #151517; --panel: #1f1f22; --ink: #ececef; --muted: #9a9aa2; --line: #333338;
+    --accent: #7b95ff; --accent-ink: #0d0d10; --soft: #262b3d; --ok: #51cf66; --warn: #ffa94d;
+    --quote: #2a2a2e;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  button, input, textarea { font: inherit; color: inherit; }
+  header { display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+           padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel);
+           position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 16px; margin: 0 8px 0 0; }
+  .file { color: var(--muted); font-size: 13px; }
+  .grow { flex: 1; }
+  .progress { width: 160px; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--ok); width: 0; }
+  .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px;
+         padding: 6px 12px; cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .dirty { color: var(--warn); font-size: 13px; }
+
+  main { display: grid; grid-template-columns: 260px 1fr 380px; gap: 16px; padding: 16px;
+         max-width: 1500px; margin: 0 auto; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+
+  #posts { overflow: auto; max-height: calc(100vh - 90px); position: sticky; top: 70px; padding: 6px; }
+  @media (max-width: 1100px) {
+    main { grid-template-columns: 1fr; }
+    #posts { max-height: 180px; position: static; }
+  }
+  .post-item { padding: 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .post-item:hover { background: var(--soft); }
+  .post-item.active { background: var(--soft); outline: 1px solid var(--accent); }
+  .post-item .t { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .post-item .m { color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; }
+  .post-item.complete .m b { color: var(--ok); }
+
+  .meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; color: var(--muted); font-size: 13px; }
+  .tag { border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; }
+  .tag.type-post { border-color: var(--accent); color: var(--accent); }
+  h2 { font-size: 18px; margin: 10px 0; }
+  .review { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+            border: 1px solid var(--warn); color: var(--warn); border-radius: 8px;
+            padding: 6px 6px 6px 12px; margin-bottom: 10px; font-size: 13px; }
+  .review.ok { border-color: var(--ok); color: var(--ok); }
+  .parent { background: var(--quote); border-left: 3px solid var(--line); padding: 8px 12px;
+            border-radius: 4px; color: var(--muted); font-size: 14px; margin-bottom: 12px; white-space: pre-wrap; }
+  .text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 16px; }
+  .text a, .meta a { color: var(--accent); }
+  .nav { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+  .field { margin-bottom: 14px; }
+  .field > label, .field > .lbl { display: block; font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+  .field .hint { font-weight: 400; color: var(--muted); }
+  .choices { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px;
+          padding: 3px 10px; cursor: pointer; font-size: 13px; }
+  .chip:hover { border-color: var(--accent); }
+  .chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .chip kbd { font-size: 11px; opacity: .7; margin-left: 4px; font-family: inherit; }
+  .disabled { opacity: .35; pointer-events: none; }
+  .found { margin-top: 8px; font-size: 12px; }
+  .found .hint { color: var(--muted); display: block; margin-bottom: 4px; }
+  .found .chip { border-style: dashed; }
+  input[type=text], textarea { width: 100%; border: 1px solid var(--line); background: var(--bg);
+           border-radius: 6px; padding: 6px 8px; }
+  textarea { min-height: 60px; resize: vertical; }
+  .keys { color: var(--muted); font-size: 12px; margin-top: 12px; line-height: 1.7; }
+  .keys kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; font-family: inherit; }
+
+  #start { max-width: 620px; margin: 60px auto; text-align: center; }
+  #drop { border: 2px dashed var(--line); border-radius: 12px; padding: 40px 20px; margin: 20px 0; }
+  #drop.over { border-color: var(--accent); background: var(--soft); }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Techno Annotator</h1>
+  <span class="file" id="fileName"></span>
+  <div class="progress" title="units coded"><div id="bar"></div></div>
+  <span class="file" id="count"></span>
+  <span class="grow"></span>
+  <span class="dirty hidden" id="dirty">unsaved changes</span>
+  <button class="btn" id="openBtn">Open sheet…</button>
+  <button class="btn primary" id="saveBtn" disabled>Save CSV</button>
+</header>
+
+<section id="start" class="panel">
+  <h2>Open your annotation sheet</h2>
+  <p id="sheetHint" class="hidden"></p>
+  <p>Pick <code>annotations/sheets/annotator_&lt;n&gt;.csv</code>. Your work is also kept
+     in this browser as you go, but only <b>Save CSV</b> writes it to the file.</p>
+  <div id="drop">Drop the CSV here, or <button class="btn" id="openBtn2">choose file…</button></div>
+  <p class="file">Chrome / Edge save straight back into the file you opened.
+     Other browsers download a copy: move it over the original.</p>
+  <input type="file" id="fileInput" accept=".csv,text/csv" class="hidden">
+</section>
+
+<main id="app" class="hidden">
+  <nav class="panel" id="posts"></nav>
+
+  <article class="panel">
+    <div class="review hidden" id="review"><span></span><button class="btn" id="reviewBtn"></button></div>
+    <div class="meta" id="meta"></div>
+    <h2 id="postTitle"></h2>
+    <div class="parent" id="parent"></div>
+    <div class="text" id="text"></div>
+    <div class="nav">
+      <button class="btn" id="prevBtn">← Prev</button>
+      <button class="btn" id="nextBtn">Next →</button>
+      <button class="btn" id="nextTodoBtn">Next uncoded ⇥</button>
+    </div>
+  </article>
+
+  <aside class="panel" id="form">
+    <div class="field">
+      <span class="lbl">Says anything about the music? <span class="hint">genre_relevant</span></span>
+      <div class="choices" data-single="genre_relevant">
+        <button class="chip" data-v="1">Yes <kbd>Y</kbd></button>
+        <button class="chip" data-v="0">No <kbd>N</kbd></button>
+      </div>
+    </div>
+    <div id="codes">
+      <div class="field">
+        <span class="lbl">Genre labels used <span class="hint">genre_labels</span></span>
+        <div class="choices" data-multi="genre_labels" id="labelChips"></div>
+        <input type="text" id="labelInput" placeholder="other label + Enter" style="margin-top:6px">
+      </div>
+      <div class="field">
+        <span class="lbl">Boundary claim <span class="hint">boundary</span></span>
+        <div class="choices" data-single="boundary">
+          <button class="chip" data-v="include">include <kbd>I</kbd></button>
+          <button class="chip" data-v="exclude">exclude <kbd>X</kbd></button>
+          <button class="chip" data-v="contested">contested <kbd>C</kbd></button>
+          <button class="chip" data-v="none">none <kbd>O</kbd></button>
+        </div>
+      </div>
+      <div class="field">
+        <span class="lbl">Criteria used <span class="hint">criteria · keys 1–0</span></span>
+        <div class="choices" data-multi="criteria" id="critChips"></div>
+      </div>
+      <div class="field">
+        <span class="lbl">Stance <span class="hint">stance</span></span>
+        <div class="choices" data-single="stance">
+          <button class="chip" data-v="positive">positive <kbd>P</kbd></button>
+          <button class="chip" data-v="negative">negative <kbd>M</kbd></button>
+          <button class="chip" data-v="mixed">mixed <kbd>B</kbd></button>
+          <button class="chip" data-v="neutral">neutral <kbd>U</kbd></button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="places">Places <span class="hint">places · lower case, ; separated</span></label>
+        <input type="text" id="places" data-text="places" placeholder="berlin;tresor">
+      </div>
+    </div>
+    <div class="field">
+      <span class="lbl">Artists / DJs named <span class="hint">artists · <kbd>A</kbd> adds all found</span></span>
+      <div class="choices" data-multi="artists" id="artistChips"></div>
+      <div class="found hidden" id="artistFoundWrap">
+        <span class="hint">Found in text, click to add:</span>
+        <div class="choices" data-multi="artists" id="artistFound"></div>
+      </div>
+      <input type="text" id="artistInput" list="artistList" placeholder="type a name + Enter" style="margin-top:6px">
+      <datalist id="artistList"></datalist>
+    </div>
+    <div class="field">
+      <label for="notes">Notes</label>
+      <textarea id="notes" data-text="notes"></textarea>
+    </div>
+    <div class="keys">
+      <kbd>←</kbd> <kbd>→</kbd> prev / next · <kbd>J</kbd> next uncoded · <kbd>V</kbd> confirm pre-tag ·
+      <kbd>Ctrl/⌘ S</kbd> save · <kbd>Esc</kbd> leave a text box
+    </div>
+  </aside>
+</main>
+
+<script src="artists.js"></script>
+<script>
+// Vocabulary: must match annotations/annotation_guide.md
+const LABELS = ["techno", "hard techno", "schranz", "industrial", "minimal", "dub techno", "acid",
+  "detroit techno", "hypnotic", "melodic techno", "peak time", "hardgroove", "ambient", "ebm",
+  "trance", "house", "tech house", "edm", "gabber/hardcore", "electro", "breaks"];
+const CRITERIA = ["tempo", "rhythm", "sound", "mood", "history", "place", "authenticity",
+  "function", "reference", "other"];
+const CODE_COLS = ["genre_relevant", "genre_labels", "boundary", "criteria", "stance", "places",
+  "artists", "notes"];
+
+// Artist suggestions (annotations/artists.js, built by src/02_annotation/03_build_artist_list.py).
+// Multi-word names match in any case; single words only as capitalised in the list.
+const fold = (s) => String(s).normalize("NFD").replace(/\p{M}/gu, "");
+const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const ARTISTS = (window.ARTISTS || []).map(names => ({
+  name: names[0],
+  res: names.map(n => new RegExp(`(?<![\\p{L}\\p{N}])${reEsc(fold(n))}(?![\\p{L}\\p{N}])`,
+                                 /\s/.test(n.trim()) ? "iu" : "u")),
+}));
+const ARTIST_BY_KEY = new Map();
+(window.ARTISTS || []).forEach(names => names.forEach(n => ARTIST_BY_KEY.set(fold(n).toLowerCase(), names[0])));
+const findArtists = (text) => { const t = fold(text || "");
+  return ARTISTS.filter(a => a.res.some(re => re.test(t))).map(a => a.name); };
+const DEPENDENT = ["genre_labels", "boundary", "criteria", "stance", "places"];
+// sheets with pre-filled codes carry `pretagged` (source) and `reviewed` ("1" once checked)
+const STATE_COLS = [...CODE_COLS, "reviewed"];
+const KEYS = { y: ["genre_relevant", "1"], n: ["genre_relevant", "0"],
+  i: ["boundary", "include"], x: ["boundary", "exclude"], c: ["boundary", "contested"], o: ["boundary", "none"],
+  p: ["stance", "positive"], m: ["stance", "negative"], b: ["stance", "mixed"], u: ["stance", "neutral"] };
+
+let header = [], rows = [], idx = 0, fileName = "", fileHandle = null, dirty = false;
+// ?sheet=annotator_2 (set by the launcher scripts): whose sheet this window is for
+const EXPECTED_SHEET = (new URLSearchParams(location.search).get("sheet") || "").replace(/[^\w-]/g, "");
+let baseHash = "";   // fingerprint of the file version the current edits are based on
+let serverSave = false;   // true when served by 04_serve_annotator.py, which can write the sheet
+const hashText = (t) => { t = t.replace(/^﻿/, ""); let h = 5381;
+  for (let i = 0; i < t.length; i++) h = ((h * 33) ^ t.charCodeAt(i)) >>> 0;
+  return t.length + ":" + h.toString(36); };
+const $ = (id) => document.getElementById(id);
+
+// ------------------------------------------------------------ CSV
+function parseCSV(text) {
+  text = text.replace(/^﻿/, "");
+  const out = []; let row = [], field = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) {
+      if (ch === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else q = false; }
+      else field += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === ",") { row.push(field); field = ""; }
+    else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i++;
+      row.push(field); out.push(row); row = []; field = "";
+    } else field += ch;
+  }
+  if (field !== "" || row.length) { row.push(field); out.push(row); }
+  return out.filter(r => !(r.length === 1 && r[0] === ""));
+}
+function toCSV() {
+  const esc = (v) => { v = v == null ? "" : String(v);
+    return /[",\r\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const lines = [header.map(esc).join(",")];
+  for (const r of rows) lines.push(header.map(h => esc(r[h])).join(","));
+  return "﻿" + lines.join("\n") + "\n";   // same format pandas writes: clean git diffs
+}
+
+// ------------------------------------------------------------ storage (per-browser backup only)
+const storeKey = () => "skdc-annotator:" + fileName;
+function backup() {
+  try {
+    const codes = {};
+    for (const r of rows) codes[r.unit_id] = Object.fromEntries(STATE_COLS.map(c => [c, r[c] || ""]));
+    localStorage.setItem(storeKey(), JSON.stringify({ idx, codes, dirty, base: baseHash }));
+  } catch (e) { /* storage unavailable: the CSV is the source of truth anyway */ }
+}
+function restore() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(storeKey()) || "null"); } catch (e) {}
+  if (!saved) return;
+  // Only offer edits that were made on this exact version of the file. If the CSV
+  // changed since (new pre-tags, a teammate's commit), the old backup would
+  // overwrite the newer file contents.
+  if (saved.dirty && saved.base !== baseHash) {
+    alert(`This browser had unsaved edits for ${fileName}, but the file has changed since ` +
+          `they were made, so they were not restored.`);
+    return;
+  }
+  if (saved.dirty) {
+    const differs = rows.filter(r => saved.codes[r.unit_id] &&
+      STATE_COLS.some(c => (saved.codes[r.unit_id][c] || "") !== (r[c] || ""))).length;
+    if (differs && confirm(`This browser has unsaved edits for ${differs} unit(s) in ${fileName}.\n` +
+                           `Restore them? (Cancel = use the file as it is)`)) {
+      for (const r of rows) if (saved.codes[r.unit_id]) Object.assign(r, saved.codes[r.unit_id]);
+      setDirty(true);
+    }
+  }
+  if (Number.isInteger(saved.idx) && saved.idx < rows.length) idx = saved.idx;
+}
+
+// ------------------------------------------------------------ loading / saving
+async function loadText(text, name) {
+  baseHash = hashText(text);
+  const table = parseCSV(text);
+  const fileHeader = table[0];
+  const missing = ["unit_id", "text", ...CODE_COLS.filter(c => c !== "artists")]
+    .filter(c => !fileHeader.includes(c));
+  if (missing.length) { alert("This doesn't look like an annotation sheet. Missing columns: " + missing.join(", ")); return; }
+  rows = table.slice(1).map(r => Object.fromEntries(fileHeader.map((h, i) => [h, r[i] ?? ""])));
+  header = [...fileHeader];
+  // sheets made before the artists code existed: add the column next to notes
+  if (!header.includes("artists")) {
+    header.splice(header.indexOf("notes"), 0, "artists");
+    rows.forEach(r => r.artists = "");
+  }
+  // opened via annotate.command / annotate.bat for a specific annotator: guard against
+  // picking someone else's sheet by mistake
+  if (EXPECTED_SHEET && name.replace(/\.csv$/i, "") !== EXPECTED_SHEET &&
+      !confirm(`You opened ${name}, but this window is for ${EXPECTED_SHEET}.csv.\nOpen it anyway?`)) return;
+  fileName = name; idx = 0; dirty = false;
+  restore();
+  $("start").classList.add("hidden"); $("app").classList.remove("hidden");
+  $("fileName").textContent = fileName; $("saveBtn").disabled = false;
+  buildPostList(); render();
+}
+async function openFile() {
+  if (window.showOpenFilePicker) {
+    try {
+      [fileHandle] = await showOpenFilePicker({ types: [{ description: "CSV", accept: { "text/csv": [".csv"] } }] });
+      const f = await fileHandle.getFile();
+      return loadText(await f.text(), f.name);
+    } catch (e) { if (e.name === "AbortError") return; }
+  }
+  $("fileInput").click();
+}
+async function save() {
+  if (!rows.length) return;
+  const csv = toCSV();
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  // started via the launcher (04_serve_annotator.py): save straight into the sheet on disk
+  if (serverSave) {
+    const sheet = fileName.replace(/\.csv$/i, "");
+    try {
+      const res = await fetch(`/api/save?sheet=${encodeURIComponent(sheet)}`,
+        { method: "POST", headers: { "X-Annotator": "1", "Content-Type": "text/csv" }, body: csv });
+      if (res.ok) {
+        baseHash = hashText(csv); setDirty(false);
+        flash(`Saved to annotations/sheets/${fileName}`); return;
+      }
+      alert(`Couldn't save: ${await res.text()}\nA copy will be downloaded instead, so nothing is lost.`);
+    } catch (e) {
+      alert("Couldn't reach the annotator server (is its terminal window still open?).\n" +
+            "A copy will be downloaded instead, so nothing is lost.");
+    }
+  }
+  baseHash = hashText(csv);   // the saved file is now the version edits build on
+  if (fileHandle && fileHandle.createWritable) {
+    try {
+      const w = await fileHandle.createWritable(); await w.write(blob); await w.close();
+      setDirty(false); flash("Saved to " + fileName); return;
+    } catch (e) { console.warn(e); }
+  }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = fileName; a.click();
+  URL.revokeObjectURL(a.href);
+  setDirty(false); flash("Downloaded " + fileName + ": replace the original with it");
+}
+function setDirty(v) { dirty = v; $("dirty").classList.toggle("hidden", !v); backup(); }
+function flash(msg) { const d = $("dirty"); d.textContent = msg; d.classList.remove("hidden");
+  setTimeout(() => { d.textContent = "unsaved changes"; d.classList.toggle("hidden", !dirty); }, 2500); }
+
+// ------------------------------------------------------------ rendering
+const isCoded = (r) => r.genre_relevant === "1" || r.genre_relevant === "0";
+const needsReview = (r) => !!r.pretagged && r.reviewed !== "1";
+const isDone = (r) => isCoded(r) && !needsReview(r);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const linkify = (s) => esc(s).replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+
+function buildPostList() {
+  const nav = $("posts"); nav.innerHTML = "";
+  const seen = new Map();
+  rows.forEach((r, i) => { if (!seen.has(r.post_id)) seen.set(r.post_id, i); });
+  for (const [pid, first] of seen) {
+    const el = document.createElement("div");
+    el.className = "post-item"; el.dataset.pid = pid;
+    el.innerHTML = `<div class="t">${esc(rows[first].post_title)}</div><div class="m"><span>${esc(rows[first].stratum)}</span><b></b></div>`;
+    el.onclick = () => { idx = first; render(); };
+    nav.appendChild(el);
+  }
+}
+function updateProgress() {
+  const done = rows.filter(isDone).length;
+  $("bar").style.width = (100 * done / rows.length) + "%";
+  $("count").textContent = `${done} / ${rows.length} coded`;
+  for (const el of $("posts").children) {
+    const units = rows.filter(r => r.post_id === el.dataset.pid);
+    const d = units.filter(isDone).length;
+    el.querySelector("b").textContent = `${d}/${units.length}`;
+    el.classList.toggle("complete", d === units.length);
+    el.classList.toggle("active", el.dataset.pid === rows[idx].post_id);
+  }
+}
+function render() {
+  const r = rows[idx];
+  const units = rows.filter(x => x.post_id === r.post_id);
+  const pos = units.indexOf(r) + 1;
+  $("meta").innerHTML = `<span class="tag type-${esc(r.unit_type)}">${esc(r.unit_type)}</span>
+    <span>unit ${idx + 1}/${rows.length} · ${pos}/${units.length} in post</span>
+    <span>score ${esc(r.score)}</span><span class="tag">${esc(r.stratum)}</span>
+    <a href="${esc(r.permalink)}" target="_blank" rel="noopener">open on Reddit ↗</a>`;
+  const rv = $("review");
+  rv.classList.toggle("hidden", !r.pretagged);
+  rv.classList.toggle("ok", r.reviewed === "1");
+  rv.querySelector("span").textContent = r.reviewed === "1"
+    ? `Pre-tagged by ${r.pretagged}, checked ✓`
+    : `Pre-tagged by ${r.pretagged}: check the codes, fix anything wrong, then confirm`;
+  rv.querySelector("button").textContent = r.reviewed === "1" ? "Undo check" : "Looks right ✓ (V)";
+  $("postTitle").textContent = r.post_title;
+  $("parent").classList.toggle("hidden", !r.parent_text);
+  $("parent").textContent = r.parent_text ? "↳ replying to: " + r.parent_text : "";
+  $("text").innerHTML = linkify(r.text);
+
+  // labels: fixed list plus any custom ones already on this row
+  const custom = splitList(r.genre_labels).filter(l => !LABELS.includes(l));
+  $("labelChips").innerHTML = [...LABELS, ...custom].map(l => `<button class="chip" data-v="${esc(l)}">${esc(l)}</button>`).join("");
+  $("critChips").innerHTML = CRITERIA.map((c, i) => `<button class="chip" data-v="${c}">${c}<kbd>${(i + 1) % 10}</kbd></button>`).join("");
+
+  const chosen = splitList(r.artists);
+  $("artistChips").innerHTML = chosen.map(a => `<button class="chip" data-v="${esc(a)}">${esc(a)} ×</button>`).join("");
+  const found = findArtists(r.text).filter(a => !chosen.includes(a));
+  $("artistFound").innerHTML = found.map(a => `<button class="chip" data-v="${esc(a)}">+ ${esc(a)}</button>`).join("");
+  $("artistFoundWrap").classList.toggle("hidden", !found.length);
+
+  document.querySelectorAll("[data-single]").forEach(g => g.querySelectorAll(".chip").forEach(b =>
+    b.classList.toggle("on", r[g.dataset.single] === b.dataset.v)));
+  document.querySelectorAll("[data-multi]").forEach(g => { const vals = splitList(r[g.dataset.multi]);
+    g.querySelectorAll(".chip").forEach(b => b.classList.toggle("on", vals.includes(b.dataset.v))); });
+  document.querySelectorAll("[data-text]").forEach(el => el.value = r[el.dataset.text] || "");
+  $("codes").classList.toggle("disabled", r.genre_relevant === "0");
+  $("prevBtn").disabled = idx === 0; $("nextBtn").disabled = idx === rows.length - 1;
+  updateProgress(); backup();
+}
+const splitList = (s) => (s || "").split(";").map(x => x.trim()).filter(Boolean);
+
+// ------------------------------------------------------------ editing
+// editing a pre-tagged unit counts as having checked it
+const touch = (r) => { if (r.pretagged) r.reviewed = "1"; };
+function toggleReviewed() {
+  const r = rows[idx]; if (!r.pretagged) return;
+  if (r.reviewed !== "1" && !isCoded(r)) { flash("Set 'says anything about the music' first"); return; }
+  r.reviewed = r.reviewed === "1" ? "" : "1";
+  setDirty(true); render();
+}
+function setSingle(col, v) {
+  const r = rows[idx]; touch(r);
+  r[col] = r[col] === v ? "" : v;
+  if (col === "genre_relevant" && r[col] === "0") DEPENDENT.forEach(c => r[c] = "");
+  setDirty(true); render();
+}
+function toggleMulti(col, v) {
+  const r = rows[idx], vals = splitList(r[col]);
+  if (col !== "artists") touch(r);   // adding names isn't a check of the genre codes
+  const i = vals.indexOf(v); i >= 0 ? vals.splice(i, 1) : vals.push(v);
+  r[col] = vals.join(";");
+  // coding a genre code implies relevant (artists are recorded independently)
+  if (col !== "artists" && r.genre_relevant === "") r.genre_relevant = "1";
+  setDirty(true); render();
+}
+document.addEventListener("click", (e) => {
+  const chip = e.target.closest(".chip"); if (!chip) return;
+  const single = chip.parentElement.dataset.single, multi = chip.parentElement.dataset.multi;
+  if (single) setSingle(single, chip.dataset.v);
+  if (multi) toggleMulti(multi, chip.dataset.v);
+});
+document.querySelectorAll("[data-text]").forEach(el => el.addEventListener("input", () => {
+  let v = el.value;
+  if (el.dataset.text === "places") v = v.toLowerCase().replace(/\s*;\s*/g, ";");
+  rows[idx][el.dataset.text] = v; touch(rows[idx]); setDirty(true); updateProgress();
+  const rv = $("review"); if (rows[idx].pretagged) { rv.classList.add("ok"); rv.querySelector("span").textContent = `Pre-tagged by ${rows[idx].pretagged}, checked ✓`; rv.querySelector("button").textContent = "Undo check"; }
+}));
+$("artistList").innerHTML = (window.ARTISTS || []).map(n => `<option value="${esc(n[0])}">`).join("");
+$("artistInput").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  const typed = e.target.value.trim().replace(/;/g, "");
+  if (typed) {
+    const name = ARTIST_BY_KEY.get(fold(typed).toLowerCase()) || typed;   // aliases -> canonical
+    if (!splitList(rows[idx].artists).includes(name)) toggleMulti("artists", name);
+  }
+  e.target.value = "";
+});
+function addAllArtists() {
+  const r = rows[idx], have = splitList(r.artists);
+  const add = findArtists(r.text).filter(a => !have.includes(a));
+  if (!add.length) return;
+  r.artists = [...have, ...add].join(";"); setDirty(true); render();
+}
+$("labelInput").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  const v = e.target.value.trim().toLowerCase().replace(/;/g, "");
+  if (v) toggleMulti("genre_labels", v);
+  e.target.value = "";
+});
+
+function go(i) { idx = Math.max(0, Math.min(rows.length - 1, i)); render(); window.scrollTo(0, 0); }
+function nextTodo() {
+  for (let k = 1; k <= rows.length; k++) { const j = (idx + k) % rows.length; if (!isDone(rows[j])) return go(j); }
+  flash("Everything is coded 🎉");
+}
+$("prevBtn").onclick = () => go(idx - 1);
+$("nextBtn").onclick = () => go(idx + 1);
+$("nextTodoBtn").onclick = nextTodo;
+$("saveBtn").onclick = save;
+$("reviewBtn").onclick = toggleReviewed;
+$("openBtn").onclick = $("openBtn2").onclick = openFile;
+$("fileInput").onchange = async (e) => { const f = e.target.files[0]; if (f) { fileHandle = null; loadText(await f.text(), f.name); } };
+
+document.addEventListener("keydown", (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); return; }
+  if (!rows.length) return;
+  const typing = ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName);
+  if (typing) { if (e.key === "Escape") document.activeElement.blur(); return; }
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k === "arrowright") go(idx + 1);
+  else if (k === "arrowleft") go(idx - 1);
+  else if (k === "j") nextTodo();
+  else if (k === "v") toggleReviewed();
+  else if (k === "a") addAllArtists();
+  else if (KEYS[k]) {
+    const [col, v] = KEYS[k];
+    if (col !== "genre_relevant" && rows[idx].genre_relevant === "0") return;
+    setSingle(col, v);
+  } else if (/^[0-9]$/.test(k) && rows[idx].genre_relevant !== "0") {
+    toggleMulti("criteria", CRITERIA[(Number(k) + 9) % 10]);
+  } else return;
+  e.preventDefault();
+});
+window.addEventListener("beforeunload", (e) => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+// drag & drop
+const drop = $("drop");
+["dragenter", "dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", async (e) => {
+  const item = [...e.dataTransfer.items].find(i => i.kind === "file");
+  if (!item) return;
+  fileHandle = item.getAsFileSystemHandle ? await item.getAsFileSystemHandle().catch(() => null) : null;
+  const f = item.getAsFile(); loadText(await f.text(), f.name);
+});
+
+// ?src=sheets/annotator_1.csv loads a sheet over http (for testing via a local server)
+if (EXPECTED_SHEET) {
+  const hint = $("sheetHint");
+  hint.innerHTML = `Hi <b>${esc(EXPECTED_SHEET.replace("_", " "))}</b>! Click <b>choose file…</b> and pick
+    <code>annotations/sheets/${esc(EXPECTED_SHEET)}.csv</code>.`;
+  hint.classList.remove("hidden");
+  document.title = `Techno Annotator · ${EXPECTED_SHEET}`;
+}
+// Served by 04_serve_annotator.py (the launcher scripts): load the sheet automatically
+// and save through the server. Opened as a plain file: pick the sheet by hand.
+if (location.protocol.startsWith("http")) {
+  fetch("/api/ping", { cache: "no-store" }).then(r => {
+    serverSave = r.ok;
+    if (serverSave && EXPECTED_SHEET && !rows.length)
+      fetch(`sheets/${EXPECTED_SHEET}.csv`, { cache: "no-store" })
+        .then(r => r.ok ? r.text() : Promise.reject(r.status))
+        .then(t => loadText(t, `${EXPECTED_SHEET}.csv`))
+        .catch(() => alert(`Couldn't load sheets/${EXPECTED_SHEET}.csv: pick it by hand.`));
+  }).catch(() => {});
+}
+const src = new URLSearchParams(location.search).get("src");
+if (src) fetch(src).then(r => r.text()).then(t => loadText(t, src.split("/").pop()));
+</script>
+</body>
+</html>
